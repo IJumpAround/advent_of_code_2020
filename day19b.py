@@ -1,7 +1,8 @@
 import re
+from datetime import datetime
 from collections import defaultdict
 
-
+start = datetime.now()
 def get_rules():
     global test
     if test:
@@ -95,9 +96,7 @@ class DiGraph:
                         if str(rule_number) == req:
                             temp += resolved_dependencies[rule_number]
                             if self.rule_number == '11':
-                                temp += '{5}'
-        # Incrementing the repetition value from 1-5 allowed me to sum the actual matches.
-        # nearly fucked myself writing a Regex generator for a language that can be described by CFGs but not regular language.
+                                temp += '{' + str(DiGraph.current_pass) + '}'
         # 331 + 34 + 6 + 3
                 injected_dependencies.append(temp)
             return injected_dependencies
@@ -147,10 +146,11 @@ class DiGraph:
             self.head = head
 
 
-    def __init__(self):
+    def __init__(self, current_pass):
         self.graph = defaultdict(set)
         self.vertices = {}
 
+        DiGraph.current_pass = current_pass
 
 
 
@@ -167,13 +167,11 @@ class DiGraph:
 
     def _parse_vertex_dependencies(self, vertex: 'DiGraph._Vertex'):
         dependencies = vertex.dependencies
-        repeating = False
         rule_dependencies = []
         for d in dependencies:
             temp = []
             if '+' in d:
                 d= d.replace(' +', '')
-                # temp = ['+']
                 vertex.repeating = True
 
 
@@ -198,7 +196,6 @@ class DiGraph:
 
 
     def _resolve(self, vertex: 'DiGraph._Vertex'):
-        # self.seen.add(vertex.rule_number)
         if vertex.terminal:
             return vertex.terminal
 
@@ -217,33 +214,35 @@ class DiGraph:
         return resolved_string
 
 test = False
-
 messages = get_messages()
 rules = get_rules()
-
 rules = update_rules(rules)
 
-print(f'{len(messages)=}')
-graph = DiGraph()
-
-for rule in rules:
-    graph.add_edge(rule)
-
-print(graph.graph)
-
-regex = graph.resolve(0)
-print(f"Resolved regex: {regex}")
-count = 0
-
-regex = re.compile(regex)
-
 print(messages)
-for message in messages:
 
-    match = regex.fullmatch(message)
+pass_num = 1
 
-    if match:
-        count += 1
+matches = 0
+while True:
+    graph = DiGraph(pass_num)
+    for rule in rules:
+        graph.add_edge(rule)
 
-print(f"total matches: {count}")
+    regex = graph.resolve(0)
+    regex = re.compile(regex)
+    matches_this_pass = 0
+    for message in messages:
 
+        match = regex.fullmatch(message)
+
+        if match:
+            matches_this_pass += 1
+
+    matches += matches_this_pass
+    pass_num += 1
+
+    if not matches_this_pass:
+        break
+
+print(f"total matches: {matches}")
+print(f"All matches found after {pass_num} iterations and {datetime.now()-start}")

@@ -1,7 +1,8 @@
+import datetime
 import re
 from collections import defaultdict
 
-
+start = datetime.datetime.now()
 def get_rules():
     global test
     if test:
@@ -169,4 +170,4 @@ for message in messages:
         count += 1
 
 print(f"total matches: {count}")
-
+print(f'Done in {datetime.datetime.now() - start}')
