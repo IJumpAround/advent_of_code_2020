@@ -28,8 +28,8 @@ class Coordinate:
             self.x = x
             self.y = y
             return self
-        else:
-            return Coordinate(x, y)
+
+        return Coordinate(x, y)
 
     def manhattan(self, other: 'Coordinate') -> int:
         x_abs = abs(other.x + self.x)
@@ -50,19 +50,26 @@ class Coordinate:
     def __mul__(self, scalar: int):
         return Coordinate(self.x * scalar, self.y * scalar)
 
+    def __floordiv__(self, scalar):
+        return Coordinate(self.x // scalar, self.y // scalar)
+
+    def __truediv__(self, scalar):
+        return Coordinate(self.x / scalar, self.y / scalar)
+
     def __eq__(self, other: 'Coordinate'):
         if isinstance(other, tuple):
             other = Coordinate(*other)
         return self.x == other.x and self.y == other.y
 
     def __str__(self):
-        return f'({self.x},{self.y})'
+        return f'({self.x:.1f},{self.y:.1f})'
 
     def __repr__(self):
         return f"<Coordinate(x={self.x}, y={self.y})>"
 
     def __hash__(self):
         return hash((self.x, self.y))
+
 
 origin = Coordinate()
 
@@ -90,14 +97,17 @@ def prettify_unit_vector(vector: Coordinate) -> str:
         Direction.NW.value: '↖',
     }
 
-    return vector_char_map[vector]
+    return vector_char_map.get(vector, np.angle(vector.value, deg=True)[0])
+
 
 class Rotate(Enum):
     L = 'L'
     R = 'R'
 
+
 class Move(Enum):
     F = 1
+
 
 class Action(Enum):
     N = Direction.N
@@ -127,7 +137,6 @@ def _counter_clockwise_rotate(unit_vector: Coordinate, degrees: int):
                            [math.sin(theta), math.cos(theta)]])
 
     out = rot_matrix.dot(unit_vector.value)
-    out = out.round()
     return Coordinate(*out)
 
 
@@ -137,15 +146,32 @@ def rotate_right(unit_vector: Coordinate, degrees: int):
 
 
 def rotate_left(unit_vector: Coordinate, degrees: int):
-
     return _counter_clockwise_rotate(unit_vector, degrees)
+
+
+def rotate_vector(vector: Coordinate, direction: Rotate, degrees) -> Coordinate:
+    if direction == Rotate.R:
+        vector = rotate_right(vector, degrees)
+    else:
+        vector = rotate_left(vector, degrees)
+
+    return vector
+
+
+def calc_unit_vector(position: Coordinate):
+    norm = np.linalg.norm(position.value)
+
+    new = position / norm
+    return new
 
 
 class Ship:
 
-    def __init__(self):
+    def __init__(self, use_waypoint=False):
+        self.use_waypoint = use_waypoint
         self.facing_unit_vector = Coordinate(1, 0)
-        self.position = Coordinate()
+        self._ship_position = Coordinate()
+        self._waypoint = self._ship_position + Coordinate(10, 1)
         self.history = []
 
     def execute_cmd(self, cmd: Command):
@@ -161,33 +187,68 @@ class Ship:
 
         self.history.append((str(self), cmd))
 
+    def _rotate_waypoint(self, direction: Rotate, degrees: int):
+        ship_relative_waypoint = self._waypoint - self._ship_position
+        rotated = rotate_vector(ship_relative_waypoint, direction, degrees)
+
+        self._waypoint = rotated + self._ship_position
+
+    def _rotate_ship(self, direction: Rotate, degrees: int):
+        ship_unit_vector = self.facing_unit_vector
+
+        self.facing_unit_vector = rotate_vector(ship_unit_vector, direction, degrees)
+
     def adjust_facing(self, direction: Rotate, degrees: int):
-        unit_vector = self.facing_unit_vector
-
-        if direction == Rotate.R:
-            unit_vector = rotate_right(unit_vector, degrees)
+        if self.use_waypoint:
+            self._rotate_waypoint(direction, degrees)
         else:
-            unit_vector = rotate_left(unit_vector, degrees)
-
-        self.facing_unit_vector = unit_vector
+            self._rotate_ship(direction, degrees)
 
     def move_forward(self, amount):
-        move_vector = self.facing_unit_vector.scale(scale=amount, inplace=False)
-        self.position += move_vector
+
+        if self.use_waypoint:
+            move_direction = self.waypoint_position - self._ship_position
+        else:
+            move_direction = self.facing_unit_vector
+
+        move_vector = move_direction.scale(scale=amount, inplace=False)
+        self._ship_position += move_vector
+
+        if self.use_waypoint:
+            self._waypoint += move_vector
 
     def move(self, move: Direction, amount: int):
         move = Coordinate(*move.value)
-        self.position += move.scale(scale=amount)
+        move.scale(scale=amount, inplace=True)
+
+        if self.use_waypoint:
+            self._waypoint += move
+        else:
+            self._ship_position += move
 
     def show_history(self):
-        hist_string = '\n'.join([f"{turn+1}: {str(h[0])} {str(h[1])}" for turn, h in enumerate(self.history)])
-        manhattan = origin.manhattan(self.position)
+        hist_string = '\n'.join([f"{turn + 1}: {str(h[0])} {str(h[1])}" for turn, h in enumerate(self.history)])
+        manhattan = origin.manhattan(self._ship_position)
         hist_string = f"Ship's history: (state after action, action)\n{hist_string}"
 
         return hist_string + '\nManhattan Distance: ' + str(manhattan)
 
+    @property
+    def manhattan(self):
+        return origin.manhattan(self._ship_position)
+
+    @property
+    def waypoint_position(self):
+        return self._waypoint
+
+    @property
+    def ship_unit_vector(self):
+        return calc_unit_vector(self._ship_position)
+
     def __str__(self):
-        return f"{prettify_unit_vector(self.facing_unit_vector)} {self.position})"
+        waypoint_state = f"⛿: {self.waypoint_position}" if self.use_waypoint else ''
+        ship_state = f"🛥 {prettify_unit_vector(self.ship_unit_vector)} {self._ship_position}"
+        return f"{ship_state:12}  {waypoint_state if waypoint_state else ''}"
 
 
 def action_from_text(text):
@@ -205,21 +266,21 @@ def action_from_text(text):
     return actions[text]
 
 
-def solve(sample):
+def solve(sample, part=1):
     input_lines = map(lambda x: (Command(action_from_text(x[0]), int(x[1:]))), load_file_as_list(12, sample))
     input_lines = list(input_lines)
-    print(input_lines)
 
-    ship = Ship()
-
-    # ship.execute_cmd(input_lines[0])
+    waypoint = (part == 2)
+    ship = Ship(use_waypoint=waypoint)
 
     for command in input_lines:
         ship.execute_cmd(command)
 
-    print(ship)
     print(ship.show_history())
+
+    return ship.manhattan
 
 
 if __name__ == '__main__':
-    solve(False)
+    assert round(solve(False)) == 1319
+    assert round(solve(False, 2)) == 62434
