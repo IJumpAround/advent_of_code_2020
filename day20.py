@@ -1,7 +1,6 @@
 import math
 from collections import defaultdict
 from copy import deepcopy
-from functools import reduce
 from pprint import pprint
 import random
 from typing import List
@@ -22,11 +21,11 @@ def get_monster_bit_mask():
     print(tabulate(monster))
     return monster
 
-with open('puzzle_input/day20/test_input.txt') as f:
-    contents = f.read()#
+# with open('puzzle_input/day20/test_input.txt') as f:
+#     contents = f.read()#
 
-# with open('puzzle_input/day20/input.txt') as f:
-#     contents = f.read()
+with open('puzzle_input/day20/input.txt') as f:
+    contents = f.read()
 
 
 raw_tiles = contents.split('\n\n')
@@ -44,24 +43,25 @@ WEST = 3
 class Graph:
     class Node:
 
-        def __init__(self, tile: 'Tile', left_side=None, right_side=None):
+        def __init__(self, tile: 'Tile'):
             self.tile = tile
             self.dist = math.inf
-            self.src_side = left_side
-            self.dst_side = right_side
 
         @property
         def id(self):
-            return self.tile.id
+            if isinstance(self.tile, Tile):
+                return self.tile.id
+            else:
+                return self.tile
 
         def __hash__(self):
             return hash(self.id)
 
         def __eq__(self, other: 'Graph.Node'):
-            return self.id == other.id and self.src_side == other.src_side and self.dst_side == other.dst_side
+            return self.id == other.id
 
         def __str__(self):
-            return f'{self.id} ({self.src_side}-{self.dst_side})'
+            return f'{self.id}'
 
         def __repr__(self):
             return self.__str__()
@@ -79,45 +79,152 @@ class Graph:
         def __hash__(self):
             return hash((self.left.id, self.right.id))
 
-    def __init__(self):
+    def __init__(self, size):
         self.edges = []
+        self.mtx = [[] for i in range(size)]
         self.seen = []
         self.graph = defaultdict(set)
         self.potential_paths = []
+        self.shortest = []
         self.dist = {}
+        self.v = 0
 
-    def add_edge(self, left: str, right: 'Tile', left_side, right_side):
-        right_node = self.Node(right, left_side, right_side)
-
+    def add_edge(self, left: 'Tile', right: 'Tile'):
+        # right_node = self.Node(right)
+        # left_node = self.Node(left)
         # edge = self.Edge(left_node, right_node, (left_side, right_side))
-        self.graph[left].add(right_node)
+        self.graph[left.id].add(right.id)
+        self.graph[right.id].add(left.id)
 
-    def find_path(self, start: 'Tile', end: 'Tile'):
+    def find_pdath(self, start: 'Tile', end: 'Tile'):
         seen = set()
         self.potential_paths = []
         self.shortest = []
+        # self.v =
 
         current_path = []
 
         start = self.Node(start)
 
         self._rfind(start, end.id, seen, current_path)
-
+        print(f'Returning: {self.shortest}')
         return self.shortest
 
-    def _add_path(self, path):
-        self.potential_paths.append(deepcopy(path))
-        self.shortest = reduce(lambda x, y: x if len(x) < len(y) else y, self.potential_paths)
+    def _add_path(self, path, t='dfs'):
+        temp = deepcopy(path)
+        # path = reduce(lambda x, y: x if len(x) < len(y) else y, self.potential_paths)
+        if len(temp) < len(self.shortest) or not self.shortest:
+            self.shortest = temp
+
+    def minDistance(self, dist, queue):
+        # Initialize min value and min_index as -1
+        minimum = float("Inf")
+        min_index = -1
+
+        # from the dist array,pick one which
+        # has min value and is till in queue
+        for i in range(len(dist)):
+            if dist[i] < minimum and i in queue:
+                minimum = dist[i]
+                min_index = i
+        return min_index
+
+
+    # def bfs(self, start, target):
+    #     s = self.Node(start)
+    #     return self._bfs(s, target)
+
+    def _bfs(self, src, dest, pred, dist):
+        # a queue to maintain queue of vertices whose
+        # adjacency list is to be scanned as per normal
+        # DFS algorithm
+        queue = []
+
+        # boolean array visited[] which stores the
+        # information whether ith vertex is reached
+        # at least once in the Breadth first search
+        visited = defaultdict(None)
+
+        # initially all vertices are unvisited
+        # so v[i] for all i is false
+        # and as no path is yet constructed
+        # dist[i] for all i set to infinity
+        for i in self.graph:
+            dist[i] = 1000000
+            pred[i] = -1
+
+        # now source is first to be visited and
+        # distance from source to itself should be 0
+        visited[src] = True
+        dist[src] = 0
+        queue.append(src)
+
+        # standard BFS algorithm
+        while queue:
+            u = queue.pop(0)
+            # for i in range(len(self.graph[u])):
+            for vertex in self.graph[u]:
+
+                if vertex not in visited:
+                    visited[vertex] = True
+                    dist[vertex] = dist[u] + 1
+                    pred[vertex] = u
+                    queue.append(vertex)
+
+                    # We stop BFS when we find
+                    # destination.
+                    if (vertex == dest):
+                        return True
+
+        return False
+
+
+    # utility function to print the shortest distance
+    # between source vertex and destination vertex
+    def bfs(self, s, dest):
+        s = s.id
+        dest = dest.id
+        # predecessor[i] array stores predecessor of
+        # i and distance array stores distance of i
+        # from s
+        pred = {i: 0 for i in self.graph}
+        dist = {v: 0 for v in self.graph}
+
+        if not self._bfs(s, dest, pred, dist):
+            print("Given source and destination are not connected")
+
+        # vector path stores the shortest path
+        path = []
+        crawl = dest
+        crawl = dest
+        path.append(crawl)
+
+        while pred[crawl] != -1:
+            path.append(pred[crawl])
+            crawl = pred[crawl]
+
+        # distance from source is in distance array
+        print("Shortest path length is : " + str(len(path)), end='')
+
+        # printing path from source to destination
+        print("\nPath is : : ")
+
+        for i in range(len(path) - 1, -1, -1):
+            print(path[i], end=' ')
+
+        return path
 
 
     def _rfind(self, node: 'Node', target: int, seen: set, current_path: list):
         found = False
-        if node.id in seen:
+        if node.id in seen or node in current_path:
             return False
 
+        seen.add(node.id)
         current_path.append(node)
 
         if node.id == target:
+            print(current_path)
             self._add_path(current_path)
 
             current_path.pop()
@@ -125,20 +232,24 @@ class Graph:
                 seen.remove(node.id)
             return True
 
-        seen.add(node.id)
         for vertex in self.graph[node.id]:
             # print(f'{vertex.id} ', end='')
-            found = self._rfind(vertex, target, seen, current_path)
-            if found:
+            # if self.shortest and len(current_path) > len(self.shortest):
+            #     break
+            if vertex != current_path[-1]:
+                found = self._rfind(vertex, target, seen, current_path)
+            # if found:
+            #     current_path.pop()
+            #     return
+            if found or self.shortest and len(current_path) > len(self.shortest):
                 break
+
 
         if node.id in seen:
             seen.remove(node.id)
         if current_path:
             current_path.pop()
 
-        if found and len(current_path) > len(self.shortest):
-            return True
 
 class Board:
 
@@ -200,9 +311,26 @@ class Board:
             self._align_edge_tile(self.constrained_board[i,-1], (EAST,))
 
     def orient_tiles(self):
+        def get_sides():
+            target_edges = []
+            for i, d in enumerate(directions):
+                truth = []
+                d_tile = mtx_filter[d]
+
+                if d_tile is None:
+                    target_edges.append(None)
+                else:
+                    found = curr_cell.cmpr(d_tile, i, flipped=True)
+                    if found and ((i + 2) % 4 == found[0] or ((i - 2) % 4 == found[0])):
+                        target_edges.append(True)
+                    elif not found:
+                        target_edges.append(False)
+                    else:
+                        target_edges += (curr_cell.cmpr(d_tile, i, flipped=True))
+            return target_edges
         aligned = [False] * self.constrained_board.size
 
-        while not all(aligned):
+        while not all(aligned) and not self.check_alignments():
             idx = -1
             for row in range(1, self.board.shape[0] - 1):
                 for col in range(1, self.board.shape[0] - 1):
@@ -211,7 +339,7 @@ class Board:
 
                     curr_cell: 'Tile' = self.board[row, col]
                     mtx_filter = self.board[row-1:row+2,col-1:col+2]
-
+                    print(mtx_filter.shape)
                     target_edges = []
                     if curr_cell.locked:
                         continue
@@ -236,7 +364,7 @@ class Board:
                     print(curr_cell.id)
                     # print(target_edges)
 
-                    truth = map(lambda x: False if x == False or isinstance(x, str) else True, target_edges)
+                    truth = map(lambda x: False if x == False or isinstance(x, int) else True, target_edges)
                     if all(truth):
                         print(f'{curr_cell.id} is aligned')
                         curr_cell.locked = True
@@ -255,19 +383,21 @@ class Board:
                             null_indices = [i for i,v in enumerate(target_edges) if v is None]
 
                             if len(null_indices) == 1:
-                                print('flipping edge piece')
+                                print('flipping an edge piece')
                                 if set(null_indices) & {NORTH, SOUTH}:
                                     curr_cell.flip(1)
                                 else:
                                     curr_cell.flip(0)
                             elif len(null_indices) > 1:
-                                print('flipping corner piece')
+                                print('flipping a corner piece')
                                 if set(null_indices).issuperset({NORTH, WEST} or set(null_indices).issuperset({SOUTH, EAST})):
                                     curr_cell.clockwise()
                                     curr_cell.flip(1)
                                 elif set(null_indices).issuperset({NORTH,EAST}) or set(null_indices).issuperset({SOUTH, WEST}):
                                     curr_cell.clockwise()
                                     curr_cell.flip(0)
+                                test123 = get_sides()
+                                print('test')
 
 
 
@@ -542,7 +672,7 @@ def find_common_edges(board: Board, unique=None):
 
     # pprint(tile_edge_table)
     # print(tabulate(board.board))
-    graph = Graph()
+    graph = Graph(len(tile_lookup.keys()))
     overlaps = defaultdict(list)
     for i in range(len(tile_edge_table)):
         tile_id = list(tile_edge_table.keys())[i]
@@ -556,8 +686,8 @@ def find_common_edges(board: Board, unique=None):
                 overlap1 = [(tile_edge_table[tile_id].index(curr_edge), tile_edge_table[other_tile_id].index(curr_edge), curr_edge) for curr_edge in overlap]
                 for curr_edge in overlap:
                     touching_edges = (tile_edge_table[tile_id].index(curr_edge), tile_edge_table[other_tile_id].index(curr_edge))
-                    graph.add_edge(tile_id, tile_lookup[other_tile_id], *touching_edges)
-                    graph.add_edge(other_tile_id, tile_lookup[tile_id], *reversed(touching_edges))
+                    graph.add_edge(tile_lookup[tile_id], tile_lookup[other_tile_id])
+                    # graph.add_edge(tile_lookup[other_tile_id], tile_lookup[tile_id])
                 matched_side = overlap1[1:]
                 overlap2 = [(tile_edge_table[other_tile_id].index(curr_edge), tile_edge_table[tile_id].index(curr_edge), curr_edge) for curr_edge in overlap]
                 if overlap:
@@ -684,7 +814,7 @@ unique, graph, corners, side_pieces, tile_lookup, overlaps = find_common_edges(b
 
 for corner in corners:
     corner.corner = True
-
+board_copy = deepcopy(board)
 for side in side_pieces:
     side.side_piece = True
 apply_corners(board, corners)
@@ -706,12 +836,21 @@ for i in range(len(corners)):
     corner2 = board.constrained_board[idx2]
     print(f'{corners[i]} {corners[(i+1)%4]}')
     print(f'Finding path from {corner1.id} to {corner2.id}')
-    path = graph.find_path(corner1, corner2)
-    paths.append(path)
+
+
+    path = graph.bfs(corner1, corner2)
+    # path = graph.bfs(corner1, corner2)
+    # print(f'visited: {visited}')
+    # path = visited[:visited.index(corner2.id)]
+    # exit()
+    # path = graph.find_path(corner1, corner2)
+
+    paths.append([tile_lookup[t_id] for t_id in path])
     pprint(path)
 
     if len(path) > board.width:
         corner_swaps.append((idx1,idx2))
+# exit(())
 
 print(tabulate(board.board))
 if corner_swaps:
@@ -723,17 +862,18 @@ if corner_swaps:
 pprint(paths)
 
 
-left_side = graph.find_path(board.constrained_board[0,0], board.constrained_board[-1, 0])
-right_side = graph.find_path(board.constrained_board[0,-1], board.constrained_board[-1,-1])
+left_side = graph.bfs(board.constrained_board[0,0], board.constrained_board[-1, 0])
+right_side = graph.bfs(board.constrained_board[0,-1], board.constrained_board[-1,-1])
 
 for i in range(1, len(left_side) - 1):
-    board.constrained_board[i,0] = tile_lookup[left_side[i].id]
-    board.constrained_board[i,-1] = tile_lookup[right_side[i].id]
+    board.constrained_board[i,0] = tile_lookup[left_side[i]]
+    board.constrained_board[i,-1] = tile_lookup[right_side[i]]
 
 for i, row in enumerate(board.constrained_board):
-    path = graph.find_path(row[0], row[-1])
+    path = graph.bfs(row[0], row[-1])
     for j in range(1, len(row) - 1):
-        board.constrained_board[i,j] = tile_lookup[path[j].id]
+        print(f'Path: {path}')
+        board.constrained_board[i,j] = tile_lookup[path[j]]
 
 # align_tile_rotation(board, unique, overlaps)
 # exit()
