@@ -1,3 +1,4 @@
+import time
 from collections import deque
 from functools import reduce
 
@@ -146,6 +147,7 @@ def calculate_unique_x(buses):
 
 
 def solve(sample):
+    start = time.time()
     file_content = input_loader.load_file_as_list(13, sample)
 
     earliest_departure, bus_numbers = file_content
@@ -184,6 +186,7 @@ def solve(sample):
         assert p1_answer == 4782
         assert at_time == 1118684865113056
 
+    print(f"Finished in {time.time() - start}seconds")
 
 if __name__ == '__main__':
     solve(True)
