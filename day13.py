@@ -33,55 +33,17 @@ def fastest_bus(buses) -> int:
 def scheduled(current_time, bus):
     return 1 if bus == -1 else current_time % bus == 0
 
-def brute_is_prime(number):
-    for i in range(2, int(math.sqrt(number)) + 1):
-        if number % i == 0:
-            return False
-    return True
 
-def prime_factor(number):
-    orig = number
-    primes = []
-
-    while number % 2 == 0:
-        primes.append(2)
-        number /= 2
-
-    candidate = 3
-    while number != 1:
-        while not brute_is_prime(candidate):
-            candidate += 2
-
-        q, rem = divmod(number, candidate)
-        if rem == 0:
-            primes.append(candidate)
-            number /= candidate
-            candidate = 3
-        candidate += 2
-
-    assert reduce(lambda x,y: x * y, primes) == orig
-    return primes
-
-def distribute(number, num_chunks=1):
-    l = number
-
-    n,r  = divmod(number, num_chunks)
-
-    range_chunks = []
-    for ndx in range(100000000000000, l, n):
-        range_chunks.append((ndx,min(ndx + n, l)))
-
-    return range_chunks
 
 
 def exist(a0, a1, b0, b1, n0, n1):
     # print(a0,a1,b0,b1,n0,n1)
     # x =a1*m2*n2 + a2*m1*n1
-
+    print(f'{n0=} {n1=}')
     X = a0 * b1 * n1 + a1 * b0 * n0
-
-    print(f'X= a0 * b1 * n1 + a1 * b0 * n0')
-    print(f'{X} = {a0} * {b1} * {n1} + {a1} * {b0} * {n0}')
+    print('running existence algorithm')
+    print(f'X= a0 * b1 * n1 + a1 * b0 * n0 = '
+          f' {a0} * {b1} * {n1} + {a1} * {b0} * {n0} = {X}')
 
     # N = -1
     # print(f'{X=}')
@@ -89,20 +51,50 @@ def exist(a0, a1, b0, b1, n0, n1):
     #    N = X + n0 * n1
     # s = X + (n0 * n1)
     # s = X
-    last = X
-    c = last
+    orig = X
+    mult = n0 * n1
+    m_abs = abs(mult)
     while True:
-        if c > 0:
-            c = c - (n0 * n1)
-        else:
-            c = c + (n0 * n1)
-        if abs(c) > abs(last):
-            s = last
+        x_abs = abs(X)
+        if m_abs - x_abs >= x_abs:
             break
-        last = c
+        if X < 1:
+            sign = m_abs > 1
+        else:
+            sign = m_abs < 1
+        sign = int(sign) or -1
+        X += (mult * sign)
 
-    print(f'reduced {X}->{s}')
-    return s
+    print(f'Existince reduced {orig} -> {X}')
+    return X
+
+def pair_algo(n0, n1, a0, a1):
+    # n1 is either last bus or combined value
+    # n0 is always a bus
+
+    # print('orig: n0,n1 ', n0, n1)
+    # bus = n0
+    # n0 = n1 * n0
+    # n1 = bus
+    # print('next: n0,n1', n0, n1)
+    # a0 = a1
+    # a1 = bus - orig_buses.index(bus)
+    # print(f'a0,a1 {a0,a1}')
+    b0, b1 = euc(n0, n1)
+    print(f'{b0=},{b1=}')
+    print(f'Sanity check b0*n0 + b1*n1 = {b0} * {n0} + {b1} * {n1} = {b0*n0 + b1*n1}')
+    # print(f'n0*b0+n1*b1={}\n')
+
+    # assert (n0 * b0) + (n1 * b1) == 1
+    a0 = exist(a0, a1, b0, b1, n0, n1)
+
+    print('pair algo returning: ', a0)
+    return a0
+
+def get_bus_a_value(bus, original_buses):
+    a = bus - original_buses.index(bus)  # puzzle algo
+    # a = original_buses.index(bus)  # wikipedia example algo
+    return a
 
 def get_schedule(buses, earliest_departure):
     start = time.time()
@@ -165,7 +157,7 @@ def get_schedule(buses, earliest_departure):
 
     largest_bus = reduce(lambda x,y: y if x < y else x, buses)
     largest_bus_time_offset = orig_buses.index(largest_bus)
-    print(f'Bus time offset: {largest_bus_time_offset}')
+    # print(f'Bus time offset: {largest_bus_time_offset}')
     # threads = []
     # cpu_count = multiprocessing.cpu_count() - 2
     # # cpu_count = 1
@@ -176,7 +168,7 @@ def get_schedule(buses, earliest_departure):
 
     # print(f'LCM: {lcm}')
 
-    print('test')
+    # print('test')
     # out = Path(r'C:\Users\Jump_Around\PycharmProjects\advent_of_code_2021\log_test')
     # f = open(out / (str(os.getpid()) + ".out"), 'w', buffering=0)
     # f_err = open(out / (str(os.getpid()) + "_err.out"), 'w', buffering=0)
@@ -186,7 +178,7 @@ def get_schedule(buses, earliest_departure):
     timestamp = start
     if timestamp == 0:
         timestamp = 1
-    print(f"Largest bus: {largest_bus}")
+    # print(f"Largest bus: {largest_bus}")
     loops = 0
     start = time.time()
     # timestamp += offset - (timestamp % offset)
@@ -208,7 +200,7 @@ def get_schedule(buses, earliest_departure):
 
     print(f'{orig_buses=}')
     N = reduce(lambda x,y: x* y, [bus for bus in orig_buses if bus != -1])
-    print(f'{N=}')
+    # print(f'{N=}')
     # bez = euc(3,4)
     # print(f'{bez=}')?
 
@@ -216,51 +208,185 @@ def get_schedule(buses, earliest_departure):
     X = 0
     # first_
 
-    print('\nrunnning algo')
-    n0 = active_buses[0]
-    n1 = active_buses[1]
-    a0 = 0
-    a1 = (n1 - orig_buses.index(n1))
-    print(f'n0,n1', n0,n1)
-    print(f'a0,a1 {a0,a1}')
-    b0,b1 = euc(n0, n1)
-    print(f'n0*b0+n1*b1={(n0 * b0) + (n1 * b1)}')
-    s = exist(a0, a1, b0, b1, n0, n1)
 
 
 
-    As = [a0, a1]
-    print(f'{s=}')
+    print('\n\n')
+
+    print('Pairing')
+    # print(f'{s=}')
     computed = deque()
-    for i in range(active_buses.index(n1)+1, len(active_buses)):
-        bus = active_buses[i]
+    comparable = deque(sorted(active_buses))
+    pairs = deque()
+    while comparable:
+        if len(comparable) % 2 == 0:
+            l,r = comparable.popleft(), comparable.pop()
+            li = get_bus_a_value(l, orig_buses)
+            ri = get_bus_a_value(r, orig_buses)
+            pairs.appendleft(((l, li), (r, ri)))
+        else:
+            p = comparable.pop()
+            pairs.appendleft(((p, get_bus_a_value(p, orig_buses)), None))
+        print(pairs)
+    remaining = None
+    # if isinstance(pairs[-1], int):
+    #     remaining = pairs.pop()
+    #     remaining = (remaining, get_bus_a_value(remaining, orig_buses))
+
+    print(f'{pairs=}')
+    # print(remaining)
+    # c3 = [x * y for x,y in pairs]
+    # print(c3)
+    s = 0
+    print()
+    # if remaining:
+    #     print('remaining',remaining)
+    #     ne = pairs.pop()
+    #     l = ne[:2]
+    #     n1,a1 = ne[2:]
+    #     n0 = remaining[0]
+    #     a0 = remaining[1]
+    #     print(f'n0,n1', n0,n1)
+    #     print(f'a0,a1 {a0,a1}')
+    #     b0,b1 = euc(n0, n1)
+    #     print(f'n0*b0+n1*b1={(n0 * b0) + (n1 * b1)}')
+    #     s = exist(s, a1, b0, b1, n0, n1)
+    #
+    #     pairs.append((*l, a0, a1 ))
+
+
+    print("Beginning apply algo to pair loop")
+    done = False
+    # s = pairs[0][2]
+    # while not done and pairs:
+    # last_s = None
+    # last_a1 = None
+    #
+    # l_last, r_last = pairs.pop()
+    # # l_last_n0, l_last_a0
+    #
+    # l_last_s = None
+    last_s = None
+    def doit(last, cur):
+        n0, a0 = last
+        n1, a1 = cur
+        # r_n1, r_a1 = r
+        # if last_s is not None:
+        #     s = last_s
+
+            # else:
+            #     n1, n0 = l,r
+            #     a1, a0 = last
+
+        s = pair_algo(n0, n1, a0, a1)
+        # solution is x === a0,1 (mod n0n1)
+        # so x becomes the previous a value when we iterate
+        n_prod = n0 * n1
+
+        return n_prod, s
+
+    r_res = None
+    l_res = None
+    l_last, r_last = pairs.popleft()
+
+    # if pairs[0][1] is None:
+    #     # exit()
+    #     p = pairs.pop()
+    #     remaining = p
+    #     # pairs.append((p,None))
+    #     pass
+
+
+    for pair in pairs:
+        l, r = pair
+        print('\n***Loop pair', (l,r))
+        # last = (l, r)
+        # if not isinstance(l, int):
+            # n0,n1,a0,a1 =
+        # l_n1, l_a1 = l
+        # r_n1, r_a1 = r
+
+
+        # if l_last_s is not None:
+        #     l_a0 = l_last_s
+        if r:
+            r_res = doit(r_last, r)
+        else:
+            # if len(pairs) == 1:
+            remaining = r_last
+            # else:
+            #     remaining = None
+
+        l_res = doit(l_last, l)
+
+        # else:
+        #     n1, n0 = l,r
+        #     a1, a0 = last
+        r_last = r_res
+        l_last = l_res
+        #
+        # l_s = pair_algo(l_n0, l_n1, l_a0, l_a1)
+        # r_s = pair_algo(r_n0, r_n1, r_a0, r_a1)
+        # # solution is x === a0,1 (mod n0n1)
+        # # so x becomes the previous a value when we iterate
+        # l_n_prod = l_n0 * l_n1
+        # r_n_prod = r_n0 * r_n1
+        # l_last_s, r_last_s = l_s, r_s
+
+    if remaining:
+        print(f'\n\nRunning final pair: {remaining}')
+        n = remaining[0]
+        a = remaining[1]
+        print('n,a',n,a)
+        print('n2, a2',l_res)
+        n, s = doit(l_res, remaining)
+        r_res = (n, s)
         print()
-        print('n0,n1', n0, n1)
-        n0 = n1 * n0
-        n1 = bus
-        print('n0,n1', n0, n1)
-        a0 = a1
-        a1 = bus - orig_buses.index(active_buses[i])
-        As.append(a1)
-        print(f'a0,a1 {a0,a1}')
-        b0, b1 = euc(n0, n1)
-        print(f'{b0=},{b1=}')
-        print(f'n0*b0+n1*b1={(n0 * b0) + (n1 * b1)}')
+    elif l_res and r_res:
+        n, s = doit(l_last, r_last)
+        l_res = (n, s)
+        # if r_res:
+            # n, s = doit((n, s), r_res)
+        # s = pair_algo(l[0], remaining[0], last_s, remaining[1])
+    elif l_res and r_res:
 
-        s = exist(s, a1, b0, b1, n0, n1)
+        n, s = doit(l_res, r_res)
 
-        print(s)
 
-        computed.append((n0,n1,a0,a1, b0,b1 ))
+    print(f'{l_res=}')
+    print(f'{r_res=}')
+    # for i in range(active_buses.index(n1)+1, len(active_buses)):
+    #     bus = active_buses[i]
+    #     print()
+    #     print('n0,n1', n0, n1)
+    #     n0 = n1 * n0
+    #     n1 = bus
+    #     print('n0,n1', n0, n1)
+    #     a0 = a1
+    #     a1 = bus - orig_buses.index(active_buses[i])
+    #     print(f'a0,a1 {a0,a1}')
+    #     b0, b1 = euc(n0, n1)
+    #     print(f'{b0=},{b1=}')
+    #     print(f'n0*b0+n1*b1={(n0 * b0) + (n1 * b1)}')
+    #
+    #     s = exist(s, a1, b0, b1, n0, n1)
+    #
+    #     print(s)
+
+        # computed.append((n0,n1,a0,a1, b0,b1 ))
         # Ni = N / bus
         # print(f'X += {ai} * {b0} * {Ni}' )
         # X += ai * b0 * Ni
 
     print('final s', s)
-    return
+    print('final small n ', n)
+    print(f'{N=}')
+    print(f'n_l * n_r {l_res[0]*r_res[0]}')
+    # return
     # print(f'{As=}')
     # print(f'{N=}')
-    # print(f'N+s{N+s}')
+    print(f'N+s{N+s}')
+    print(f'answer= {s if s>0 else N+s}')
     # print()
     # print(f'{X=}')
     # while X < 0:
@@ -272,6 +398,7 @@ def get_schedule(buses, earliest_departure):
     # X = exist(0,3, *bez, 3, 4)
     # print(f'{X=}')
     # # X =
+    return
     while True:
 
         # if not streak:
@@ -400,8 +527,10 @@ def solve(sample):
     # 3417   = -4 (mod 19)
     # bus_numbers = '11,x,x,x,x,x,11,x,x,21,x,x,x,16,x,x,x,x,x,25'
     # bus_numbers = '3,x,x,4,5'
+    # bus_numbers = '3,x,x,4'
     # bus_numbers = '67,7,59,61'
     # bus_numbers = '67,x,7,59,61'
+    # bus_numbers = '67,7,x,59,61'
     # bus_numbers = '1789,37,47,1889'
 
     earliest_departure = int(earliest_departure)
