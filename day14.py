@@ -65,7 +65,7 @@ def solve(sample):
     answer = sum(mem.values())
     p2_answer = sum(mem2.values())
 
-    print(answer)
+    print('p1 answer: ', answer)
     print('p2 answer: ', p2_answer)
     assert p2_answer == 5724245857696
     assert answer == 15018100062885
