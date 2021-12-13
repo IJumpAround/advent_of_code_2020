@@ -1,23 +1,20 @@
-from collections import defaultdict, deque
+from collections import defaultdict
 
 from utils import input_loader
 
 
-
-
-
 def memorize(number, turn, number_watch):
-    if len(number_watch[number]) == 0:
+    if number not in number_watch:
         speak = 0
     else:
-        speak = turn - number_watch[number][0]
-        number_watch[number].popleft()
-    number_watch[number].append(turn)
+        speak = turn - number_watch[number]
+    number_watch[number] = turn
 
     return speak
 
+
 def solve(sample, stop_at):
-    number_watch = defaultdict(deque)
+    number_watch = defaultdict(int)
 
     content = input_loader.load_file_as_string(15, sample)
 
@@ -26,25 +23,20 @@ def solve(sample, stop_at):
 
     turn_number = len(numbers) + 1
     for i, number in enumerate(numbers):
-        number_watch[number].append(i+1)
+        number_watch[number] = i+1
 
     last_spoken = 0
     while turn_number < stop_at:
 
-        number = last_spoken
-
-
-        speak = memorize(number, turn_number, number_watch)
+        speak = memorize(last_spoken, turn_number, number_watch)
         last_spoken = speak
 
         turn_number += 1
 
-        # print(number_watch)
-
     print('turn ',turn_number, ' last spoken', last_spoken)
 
-
     return last_spoken
+
 
 if __name__ == '__main__':
     assert solve(False, 2020) == 1194
